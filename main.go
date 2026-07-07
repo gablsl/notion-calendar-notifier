@@ -61,12 +61,14 @@ func main() {
 		return
 	}
 
-	now := time.Now()
-	fiveMinAgo := now.Add(-5 * time.Minute).Format(time.RFC3339)
-	twentyMinAhead := now.Add(20 * time.Minute).Format(time.RFC3339)
+	location, _ := time.LoadLocation("America/Sao-Paulo")
+	now := time.Now().In(location)
 
-	fmt.Printf("[DEBUG] Current time inside container: %s\n", now.Format(time.RFC3339))
-	fmt.Printf("[DEBUG] Query window: %s to %s\n", fiveMinAgo, twentyMinAhead)
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, location)
+	endOfDay := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, location)
+
+	fmt.Printf("[DEBUG] Current time (São Paulo): %s\n", now.Format(time.RFC3339))
+	fmt.Printf("[DEBUG] Searching all events for today between %s and %s\n", startOfDay, endOfDay)
 
 	payload := NotionQueryPayload{
 		Filter: map[string]interface{}{
@@ -74,13 +76,13 @@ func main() {
 				{
 					"property": "Due date",
 					"date": map[string]interface{}{
-						"on_or_after": fiveMinAgo,
+						"on_or_after": startOfDay,
 					},
 				},
 				{
 					"property": "Due date",
 					"date": map[string]interface{}{
-						"on_or_before": twentyMinAhead,
+						"on_or_before": endOfDay,
 					},
 				},
 				{
