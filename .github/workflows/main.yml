@@ -22,4 +22,5 @@ jobs:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TZ: America/Sao_Paulo
         run: go run main.go
