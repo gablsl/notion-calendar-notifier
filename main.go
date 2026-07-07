@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"time"
@@ -56,13 +57,16 @@ func main() {
 	ntfyTopic := os.Getenv("NTFY_TOPIC")
 
 	if notionToken == "" || databaseID == "" || ntfyTopic == "" {
-		fmt.Println("Missing environment variables.")
+		fmt.Println("[DEBUG] Error: Missing environment variables.")
 		return
 	}
 
 	now := time.Now()
 	fiveMinAgo := now.Add(-5 * time.Minute).Format(time.RFC3339)
 	twentyMinAhead := now.Add(20 * time.Minute).Format(time.RFC3339)
+
+	fmt.Printf("[DEBUG] Current time inside container: %s\n", now.Format(time.RFC3339))
+	fmt.Printf("[DEBUG] Query window: %s to %s\n", fiveMinAgo, twentyMinAhead)
 
 	payload := NotionQueryPayload{
 		Filter: map[string]interface{}{
@@ -100,19 +104,32 @@ func main() {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Printf("Failed to query Notion: %v\n", err)
+		fmt.Printf("[DEBUG] HTTP request failed: %v\n", err)
 		return
 	}
 	defer resp.Body.Close()
 
-	var result NotionResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		fmt.Printf("Failed to decode response: %v\n", err)
+	fmt.Printf("[DEBUG] Notion API HTTP Status: %d\n", resp.StatusCode)
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("[DEBUG] Failed to read response body: %v\n", err)
 		return
 	}
 
-	for _, page := range result.Results {
-		eventName := ""
+	// Print incoming JSON from Notion to inspect structural issues
+	fmt.Printf("[DEBUG] Raw Notion Response: %s\n", string(bodyBytes))
+
+	var result NotionResponse
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
+		fmt.Printf("[DEBUG] Failed to unmarshal JSON: %v\n", err)
+		return
+	}
+
+	fmt.Printf("[DEBUG] Total items found matching filter: %d\n", len(result.Results))
+
+	for i, page := range result.Results {
+		eventName := "Untitled"
 		if len(page.Properties.Name.Title) > 0 {
 			eventName = page.Properties.Name.Title[0].PlainText
 		}
@@ -121,6 +138,8 @@ func main() {
 		if page.Properties.Blocks.Select != nil {
 			blockName = page.Properties.Blocks.Select.Name
 		}
+
+		fmt.Printf("[DEBUG] Processing item [%d]: %s (%s) - ID: %s\n", i, eventName, blockName, page.ID)
 
 		sendNtfyNotification(ntfyTopic, eventName, blockName)
 		updateNotionStatus(notionToken, page.ID)
@@ -137,7 +156,13 @@ func sendNtfyNotification(topic, eventName, blockName string) {
 	req.Header.Set("Tags", "calendar")
 
 	client := &http.Client{}
-	_, _ = client.Do(req)
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Printf("[DEBUG] ntfy push request failed: %v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+	fmt.Printf("[DEBUG] ntfy API HTTP Status: %d\n", resp.StatusCode)
 }
 
 func updateNotionStatus(token, pageID string) {
@@ -158,5 +183,11 @@ func updateNotionStatus(token, pageID string) {
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{}
-	_, _ = client.Do(req)
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Printf("[DEBUG] Notion checkbox update failed: %v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+	fmt.Printf("[DEBUG] Notion checkbox update HTTP Status: %d\n", resp.StatusCode)
 }
