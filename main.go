@@ -61,7 +61,7 @@ func main() {
 		return
 	}
 
-	location, _ := time.LoadLocation("America/Sao-Paulo")
+	location, _ := time.LoadLocation("America/Sao_Paulo")
 	now := time.Now().In(location)
 
 	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, location)
