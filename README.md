@@ -46,6 +46,27 @@ To safely run the automated routine without exposing your private credentials, a
 
 ## 🚀 How It Runs
 
+```
+GitHub Actions (Cron)
+          │
+          ▼
+      Go Application
+          │
+          ├────────► Notion API
+          │              │
+          │              ▼
+          │       Fetch today's tasks
+          │
+          ▼
+     ntfy.sh API
+          │
+          ▼
+ Phone/Desktop Notification
+          │
+          ▼
+Update "notified" field in Notion
+```
+
 The automated lifecycle is controlled by `.github/workflows/cron.yml` using the environment configuration below:
 
 ```yaml
