@@ -13,7 +13,7 @@ import (
 const NotionVersion = "2022-06-28"
 
 type NotionQueryPayload struct {
-	Filter map[string]interface{} `json:"filter"`
+    Filter map[string]interface{} `json:"filter"`
 }
 
 type NotionResponse struct {
